@@ -51,7 +51,7 @@ int get_file(std::string url, boolean verbose) {
 		curl_easy_cleanup(curl);
 		fclose(fp);
 		if (res != 0) {
-			std::cerr << "[get_file]CURL ERROR: " << res;
+			std::cerr << "[get_file]CURL ERROR: " << res << std::endl;
 			system("pause");
 			abort();
 		}
@@ -78,7 +78,7 @@ std::string get_data(std::string url, boolean verbose) {
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		if (res != 0) {
-			std::cerr << "[get_data]CURL ERROR: " << res;
+			std::cerr << "[get_data]CURL ERROR: " << res << std::endl;
 			system("pause");
 			abort();
 		}
