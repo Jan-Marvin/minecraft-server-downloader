@@ -6,7 +6,7 @@
 #include <curl/curl.h>
 #include <filesystem>
 
-int lenght;
+int lenght = INT_MAX;
 
 size_t write_data(void* ptr, size_t size, size_t nmemb, FILE* stream) {
 	size_t written = fwrite(ptr, size, nmemb, stream);
@@ -50,7 +50,13 @@ int get_file(std::string url, boolean verbose) {
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		fclose(fp);
+		if (res != 0) {
+			std::cerr << "[get_file]CURL ERROR: " << res;
+			system("pause");
+			abort();
+		}
 	}
+	curl_global_cleanup();
 	return 0;
 }
 
@@ -71,8 +77,10 @@ std::string get_data(std::string url, boolean verbose) {
 		}
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
-		if (CURLE_OK != res) {
-			std::cerr << "CURL error: " << res << '\n';
+		if (res != 0) {
+			std::cerr << "[get_data]CURL ERROR: " << res;
+			system("pause");
+			abort();
 		}
 	}
 	curl_global_cleanup();
@@ -95,7 +103,7 @@ bool in_use() {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.32" << std::endl;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.33" << std::endl;
 	boolean verbose = false;
 	//verbose
 	if (argc > 1) {
@@ -105,7 +113,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (in_use()) {
-		std::cerr << "Minecraft server is running" << std::endl;
+		std::cerr << "ERROR: Cannot write to server.jar is it in use?" << std::endl;
 		system("pause");
 		return 1;
 	}
@@ -117,7 +125,7 @@ int main(int argc, char* argv[]) {
 	data_url.erase(found + 4);
 	found = data_url.find("<a href=\"https://");
 	data_url.erase(0, found + 9);
-	std::cout << "Download url: " + data_url << std::endl;
+	std::cout << "Server jar url: " + data_url << std::endl;
 
 	//version
 	std::string data_version = data;
@@ -131,7 +139,12 @@ int main(int argc, char* argv[]) {
 	get_file(data_url, verbose);
 
 	if (std::filesystem::file_size("server.jar") != lenght) {
-		std::cerr << "ERROR wrong file size" << std::endl;
+		std::cerr << "ERROR: Wrong file size" << std::endl;
+		system("pause");
+		return 1;
+	}
+	else if (lenght == INT_MAX) {
+		std::cerr << "ERROR: Could not get remote server.jar file size" << std::endl;
 		system("pause");
 		return 1;
 	}
