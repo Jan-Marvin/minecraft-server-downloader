@@ -30,6 +30,19 @@ static size_t header_callback(char* buffer, size_t size, size_t nitems, void* us
 	return nitems * size;
 }
 
+int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+	std::string bar = "[";
+	unsigned int percent = (10.0 /dltotal) * dlnow;
+	for (int i = 0; i < percent; i++) {
+		bar = bar + "|";
+	}
+	size_t to_fill = 11 - bar.length();
+	bar.append(to_fill, ' ');
+	bar.append("]");
+	std::cout << "\r" << bar << "  " << dlnow / 1000 << "/" << dltotal / 1000;
+	return CURLE_OK;
+}
+
 int get_file(std::string url, boolean verbose) {
 	CURL* curl;
 	FILE* fp;
@@ -42,8 +55,10 @@ int get_file(std::string url, boolean verbose) {
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		if (verbose) {
-			FILE* filep = fopen("dump.log", "wb");
+			FILE* filep = fopen("curl.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, filep);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
@@ -51,7 +66,7 @@ int get_file(std::string url, boolean verbose) {
 		curl_easy_cleanup(curl);
 		fclose(fp);
 		if (res != 0) {
-			std::cerr << "[get_file]CURL ERROR: " << res << std::endl;
+			std::cerr << std::endl << "[get_file]CURL ERROR: " << res << std::endl;
 			system("pause");
 			abort();
 		}
@@ -71,7 +86,7 @@ std::string get_data(std::string url, boolean verbose) {
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 		if (verbose) {
-			FILE* filep = fopen("dump.log", "wb");
+			FILE* filep = fopen("curl.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, filep);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
@@ -103,7 +118,7 @@ bool in_use() {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.33" << std::endl;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.34" << std::endl;
 	boolean verbose = false;
 	//verbose
 	if (argc > 1) {
@@ -135,7 +150,7 @@ int main(int argc, char* argv[]) {
 	data_version.erase(0, found + 17);
 
 	std::cout << "Version: " + data_version << std::endl;
-	std::cout << "Please wait..." << std::endl;
+	std::cout << "Download..." << std::endl;
 	get_file(data_url, verbose);
 
 	if (std::filesystem::file_size("server.jar") != lenght) {
