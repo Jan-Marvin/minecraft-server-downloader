@@ -1,31 +1,30 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <string>
-#include <sstream>
-#include <vector>
-#include <curl/curl.h>
 #include <filesystem>
+#include <curl/curl.h>
 
-int lenght = INT_MAX;
-
-size_t write_data(void* ptr, size_t size, size_t nmemb, FILE* stream) {
+//write data to file
+size_t write_data_file_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
 	size_t written = fwrite(ptr, size, nmemb, stream);
 	return written;
 }
 
-static size_t my_write(void* buffer, size_t size, size_t nmemb, void* param) {
+//write data to string
+static size_t write_data_string_callback(void* buffer, size_t size, size_t nmemb, std::string* param) {
 	std::string& text = *static_cast<std::string*>(param);
 	size_t totalsize = size * nmemb;
 	text.append(static_cast<char*>(buffer), totalsize);
 	return totalsize;
 }
 
-static size_t header_callback(char* buffer, size_t size, size_t nitems, void* userdata) {
+//header data
+static size_t header_callback(char* buffer, size_t size, size_t nitems, int* p_lenght) {
 	std::string header = buffer;
 	std::size_t found = header.find("Content-Length: ");
 	if (found != std::string::npos) {
 		header.erase(0, found + 16);
-		lenght = stoi(header);
+		*p_lenght = stoi(header);
 	}
 	return nitems * size;
 }
@@ -72,39 +71,42 @@ int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_
 	return CURLE_OK;
 }
 
-int get_file(std::string url, boolean verbose) {
+//write jar
+int get_file(std::string url, bool verbose, int* p_lenght) {
 	CURL* curl;
-	FILE* fp;
+	FILE* p_file;
 	CURLcode res;
 	char outfilename[FILENAME_MAX] = "server.jar";
 	curl = curl_easy_init();
 	if (curl) {
-		fp = fopen(outfilename, "wb");
+		p_file = fopen(outfilename, "wb");
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_file_callback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, p_file);
 		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+		curl_easy_setopt(curl, CURLOPT_HEADERDATA, p_lenght);
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		if (verbose) {
-			FILE* filep = fopen("curl.log", "wb");
-			curl_easy_setopt(curl, CURLOPT_STDERR, filep);
+			FILE* p_log = fopen("curl.log", "wb");
+			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
-		fclose(fp);
+		fclose(p_file);
+		std::cout << std::endl;
 		if (res != 0) {
-			std::cerr << std::endl << "[get_file]CURL ERROR: " << res << std::endl;
+			std::cerr << "[get_file]CURL ERROR: " << res << std::endl;
 			system("pause");
-			abort();
 		}
 	}
 	curl_global_cleanup();
-	return 0;
+	return res;
 }
 
-std::string get_data(std::string url, boolean verbose) {
+//get website
+std::string get_data(std::string url, bool verbose) {
 	std::string result;
 	CURL* curl;
 	CURLcode res;
@@ -112,11 +114,11 @@ std::string get_data(std::string url, boolean verbose) {
 	curl = curl_easy_init();
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_write);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_string_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 		if (verbose) {
-			FILE* filep = fopen("curl.log", "wb");
-			curl_easy_setopt(curl, CURLOPT_STDERR, filep);
+			FILE* p_log = fopen("curl.log", "wb");
+			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
 		res = curl_easy_perform(curl);
@@ -124,13 +126,12 @@ std::string get_data(std::string url, boolean verbose) {
 		if (res != 0) {
 			std::cerr << "[get_data]CURL ERROR: " << res << std::endl;
 			system("pause");
-			abort();
 		}
 	}
-	curl_global_cleanup();
 	return result;
 }
 
+//is jar writable
 bool in_use() {
 	if (!std::filesystem::exists("server.jar")) {
 		return 0;
@@ -147,8 +148,9 @@ bool in_use() {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.34" << std::endl;
-	boolean verbose = false;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.35" << std::endl;
+	int lenght = INT_MAX;
+	bool verbose = false;
 	//verbose
 	if (argc > 1) {
 		if (argv[1] == std::string("-v")) {
@@ -166,6 +168,9 @@ int main(int argc, char* argv[]) {
 	std::string data = get_data("https://www.minecraft.net/en-us/download/server", verbose);
 	std::string data_url = data;
 	std::size_t found = data_url.find(".jar");
+	if (found == std::string::npos) {
+		return 1;
+	}
 	data_url.erase(found + 4);
 	found = data_url.find("<a href=\"https://");
 	data_url.erase(0, found + 9);
@@ -180,8 +185,11 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Version: " + data_version << std::endl;
 	std::cout << "Download..." << std::endl;
-	get_file(data_url, verbose);
+	if (get_file(data_url, verbose, &lenght) != 1) {
+		return 1;
+	}
 
+	//size check
 	if (std::filesystem::file_size("server.jar") != lenght) {
 		std::cerr << "ERROR: Wrong file size" << std::endl;
 		system("pause");
