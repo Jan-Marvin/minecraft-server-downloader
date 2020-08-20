@@ -30,16 +30,45 @@ static size_t header_callback(char* buffer, size_t size, size_t nitems, void* us
 	return nitems * size;
 }
 
-int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
-	std::string bar = "[";
-	unsigned int percent = (10.0 /dltotal) * dlnow;
-	for (int i = 0; i < percent; i++) {
-		bar = bar + "|";
+//space betwenn bar and number
+int getspace(long long dltotal, long long dlnow) {
+	int nr1 = 0;
+	int nr2 = 0;
+	bool lock = false;
+	while (dltotal != 0) {
+		dltotal = dltotal / 10;
+		nr1++;
+		if (dltotal == 0 && !lock) {
+			lock = true;
+			dltotal = dlnow;
+			nr2 = nr1;
+			nr1 = 0;
+		}
 	}
-	size_t to_fill = 11 - bar.length();
-	bar.append(to_fill, ' ');
-	bar.append("]");
-	std::cout << "\r" << bar << "  " << dlnow / 1000 << "/" << dltotal / 1000;
+	if (nr2 - nr1 == 8) {
+		return nr2 - nr1 - 4;
+	}
+	return nr2 - nr1;
+}
+
+//progress bar
+int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+	std::string bar;
+	int nrspace = getspace(dltotal, dlnow);
+	for (int i = 0; i < (10.0 / dltotal) * dlnow; i++) {
+		bar = bar + "#";
+	}
+	bar.append((10 - bar.length()), '-');
+	std::string space;
+	if (nrspace == 0) {
+		space = "  ";
+	}
+	else {
+		for (int i = 0; i < nrspace + 2; i++) {
+			space.append(" ");
+		}
+	}
+	printf("\r[%s]%s%lld/%lld", bar.c_str(), space.c_str(), dlnow / 1000, dltotal / 1000);
 	return CURLE_OK;
 }
 
