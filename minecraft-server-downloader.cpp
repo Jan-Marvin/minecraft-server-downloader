@@ -2,7 +2,9 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <fstream>
 #include <curl/curl.h>
+#include <openssl/sha.h>
 
 //write data to file
 size_t write_data_file_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -147,6 +149,53 @@ bool in_use() {
 	}
 }
 
+bool hash(std::string strsha) {
+	//open file
+	std::ifstream infile ("server.jar", std::ifstream::binary);
+
+	if (infile) {
+		//get length of file:
+		infile.seekg(0, infile.end);
+		int length = infile.tellg();
+		infile.seekg(0, infile.beg);
+		char* buffer = new char[length];
+
+		//read data as a block:
+		infile.read(buffer, length);
+		infile.close();
+
+		//sha1
+		std::string s1;
+		unsigned char hash[SHA_DIGEST_LENGTH];
+		SHA1((unsigned char*)buffer, length, hash);
+		s1.assign((char*)&hash[0], sizeof(hash));
+		delete[] buffer;
+
+		//to hex
+		static const char hex_digits[] = "0123456789ABCDEF";
+		std::string s2;
+		s2.reserve(s1.length() * 2);
+		for (unsigned char c : s1) {
+			s2.push_back(hex_digits[c >> 4]);
+			s2.push_back(hex_digits[c & 15]);
+		};
+
+		//hash to uppercase
+		std::for_each(strsha.begin(), strsha.end(), [](char& c) {
+			c = ::toupper(c);
+		});
+
+		//compare hash
+		if (strsha == s2) {
+			return 1;
+		}
+		else {
+			return 0;
+		}
+	}
+	return 0;
+}
+
 int main(int argc, char* argv[]) {
 	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.35" << std::endl;
 	int lenght = INT_MAX;
@@ -176,6 +225,10 @@ int main(int argc, char* argv[]) {
 	data_url.erase(0, found + 9);
 	std::cout << "Server jar url: " + data_url << std::endl;
 
+	//hash
+	found = data_url.find("objects/");
+	std::string sHash = data_url.substr(found + 8, 40);
+	
 	//version
 	std::string data_version = data;
 	found = data_version.find(".jar</a>");
@@ -185,7 +238,8 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Version: " + data_version << std::endl;
 	std::cout << "Download..." << std::endl;
-	if (get_file(data_url, verbose, &lenght) != 1) {
+
+	if (get_file(data_url, verbose, &lenght) != 0) {
 		return 1;
 	}
 
@@ -197,6 +251,12 @@ int main(int argc, char* argv[]) {
 	}
 	else if (lenght == INT_MAX) {
 		std::cerr << "ERROR: Could not get remote server.jar file size" << std::endl;
+		system("pause");
+		return 1;
+	}
+	//hash check
+	else if (!hash(sHash)) {
+		std::cerr << "ERROR: Wrong checksum" << std::endl;
 		system("pause");
 		return 1;
 	}
