@@ -197,7 +197,7 @@ bool hash(std::string strsha) {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.35" << std::endl;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.36" << std::endl;
 	int lenght = INT_MAX;
 	bool verbose = false;
 	//verbose
