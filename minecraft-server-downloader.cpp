@@ -150,7 +150,7 @@ bool in_use() {
 	}
 }
 
-bool hash(std::string strsha) {
+std::string calc_hash() {
 	//open file
 	std::ifstream infile("server.jar", std::ifstream::binary);
 
@@ -180,21 +180,26 @@ bool hash(std::string strsha) {
 			s2.push_back(hex_digits[c >> 4]);
 			s2.push_back(hex_digits[c & 15]);
 		};
-
-		//hash to uppercase
-		std::for_each(strsha.begin(), strsha.end(), [](char& c) {
-			c = ::toupper(c);
-			});
-
-		//compare hash
-		if (strsha == s2) {
-			return 1;
-		}
-		else {
-			return 0;
-		}
+		return s2;
 	}
-	return 0;
+	else {
+		return "";
+	}
+}
+
+//1=ok 0=nok
+bool compare_hash(std::string strsha) {
+	//hash to uppercase
+	std::for_each(strsha.begin(), strsha.end(), [](char& c) {
+		c = ::toupper(c);
+	});
+	//compare hash
+	if (strsha == calc_hash()) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -236,6 +241,12 @@ int main(int argc, char* argv[]) {
 	found = data_url.find("objects/");
 	std::string sHash = data_url.substr(found + 8, 40);
 
+	if (compare_hash(sHash)) {
+		std::cout << "server.jar is up to date" << std::endl;
+		system("pause");
+		return 1;
+	}
+
 	//minecraft version
 	std::string data_version = data;
 	found = data_version.find(".jar</a>");
@@ -262,7 +273,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	//hash check
-	else if (!hash(sHash)) {
+	else if (!compare_hash(sHash)) {
 		std::cerr << "ERROR: Wrong checksum" << std::endl;
 		system("pause");
 		return 1;
