@@ -5,6 +5,7 @@
 #include <fstream>
 #include <curl/curl.h>
 #include <openssl/sha.h>
+#include <openssl/crypto.h>
 
 //write data to file
 size_t write_data_file_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -90,7 +91,7 @@ int get_file(std::string url, bool verbose, int* p_lenght) {
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		if (verbose) {
-			FILE* p_log = fopen("curl.log", "wb");
+			FILE* p_log = fopen("curl-get_file.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
@@ -119,7 +120,7 @@ std::string get_data(std::string url, bool verbose) {
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_string_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 		if (verbose) {
-			FILE* p_log = fopen("curl.log", "wb");
+			FILE* p_log = fopen("curl-get_data.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		}
@@ -151,7 +152,7 @@ bool in_use() {
 
 bool hash(std::string strsha) {
 	//open file
-	std::ifstream infile ("server.jar", std::ifstream::binary);
+	std::ifstream infile("server.jar", std::ifstream::binary);
 
 	if (infile) {
 		//get length of file:
@@ -183,7 +184,7 @@ bool hash(std::string strsha) {
 		//hash to uppercase
 		std::for_each(strsha.begin(), strsha.end(), [](char& c) {
 			c = ::toupper(c);
-		});
+			});
 
 		//compare hash
 		if (strsha == s2) {
@@ -197,13 +198,19 @@ bool hash(std::string strsha) {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.36" << std::endl;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.36\n" << std::endl;
 	int lenght = INT_MAX;
 	bool verbose = false;
-	//verbose
 	if (argc > 1) {
-		if (argv[1] == std::string("-v")) {
+		//verbose
+		if (argv[1] == std::string("-l")) {
 			verbose = true;
+		}
+		//version 
+		else if (argv[1] == std::string("-v")) {
+			std::cout << curl_version() << std::endl;
+			std::cout << SSLeay_version(SSLEAY_VERSION);;
+			return 1;
 		}
 	}
 
@@ -228,8 +235,8 @@ int main(int argc, char* argv[]) {
 	//hash
 	found = data_url.find("objects/");
 	std::string sHash = data_url.substr(found + 8, 40);
-	
-	//version
+
+	//minecraft version
 	std::string data_version = data;
 	found = data_version.find(".jar</a>");
 	data_version.erase(found);
