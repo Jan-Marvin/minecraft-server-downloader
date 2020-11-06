@@ -3,9 +3,11 @@
 #include <string>
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 #include <curl/curl.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
+#include "minecraft-server-downloader.h"
 
 //write data to file
 size_t write_data_file_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -101,7 +103,9 @@ int get_file(std::string url, bool verbose, int* p_lenght) {
 		std::cout << std::endl;
 		if (res != 0) {
 			std::cerr << "[get_file]CURL ERROR: " << res << std::endl;
-			system("pause");
+			if (win) {
+				system("pause");
+			}
 		}
 	}
 	curl_global_cleanup();
@@ -128,7 +132,9 @@ std::string get_data(std::string url, bool verbose) {
 		curl_easy_cleanup(curl);
 		if (res != 0) {
 			std::cerr << "[get_data]CURL ERROR: " << res << std::endl;
-			system("pause");
+			if (win) {
+				system("pause");
+			}
 		}
 	}
 	return result;
@@ -150,6 +156,7 @@ bool in_use() {
 	}
 }
 
+//calculate sha1
 std::string calc_hash() {
 	//open file
 	std::ifstream infile("server.jar", std::ifstream::binary);
@@ -187,6 +194,7 @@ std::string calc_hash() {
 	}
 }
 
+//compare sha1 
 //1=ok 0=nok
 bool compare_hash(std::string strsha) {
 	//hash to uppercase
@@ -221,7 +229,9 @@ int main(int argc, char* argv[]) {
 
 	if (in_use()) {
 		std::cerr << "ERROR: Cannot write to server.jar is it in use?" << std::endl;
-		system("pause");
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 
@@ -243,7 +253,9 @@ int main(int argc, char* argv[]) {
 
 	if (compare_hash(sHash)) {
 		std::cout << "server.jar is up to date" << std::endl;
-		system("pause");
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 
@@ -264,18 +276,24 @@ int main(int argc, char* argv[]) {
 	//size check
 	if (std::filesystem::file_size("server.jar") != lenght) {
 		std::cerr << "ERROR: Wrong file size" << std::endl;
-		system("pause");
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 	else if (lenght == INT_MAX) {
 		std::cerr << "ERROR: Could not get remote server.jar file size" << std::endl;
-		system("pause");
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 	//hash check
 	else if (!compare_hash(sHash)) {
 		std::cerr << "ERROR: Wrong checksum" << std::endl;
-		system("pause");
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 	return 0;

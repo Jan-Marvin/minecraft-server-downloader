@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{$guid1$}</ProjectGuid>
-    <RootNamespace>$safeprojectname$</RootNamespace>
+    <ProjectGuid>{d3e9f491-9736-4771-8dc7-b6dfec283229}</ProjectGuid>
+    <RootNamespace>minecraftserverdownloader</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -133,6 +133,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -146,6 +147,7 @@
     <ClCompile Include="minecraft-server-downloader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="minecraft-server-downloader.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
