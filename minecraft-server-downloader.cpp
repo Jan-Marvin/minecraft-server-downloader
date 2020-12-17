@@ -200,7 +200,7 @@ bool compare_hash(std::string strsha) {
 	//hash to uppercase
 	std::for_each(strsha.begin(), strsha.end(), [](char& c) {
 		c = ::toupper(c);
-	});
+		});
 	//compare hash
 	if (strsha == calc_hash()) {
 		return 1;
@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	data_url.erase(found + 4);
-	found = data_url.find("<a href=\"https://");
+	found = data_url.find("<a href=\"https://launcher.mojang.com");
 	data_url.erase(0, found + 9);
 	std::cout << "Server jar url: " + data_url << std::endl;
 
