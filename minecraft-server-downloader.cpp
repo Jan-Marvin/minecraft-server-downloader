@@ -245,6 +245,16 @@ int main(int argc, char* argv[]) {
 	data_url.erase(found + 4);
 	found = data_url.find("<a href=\"https://launcher.mojang.com");
 	data_url.erase(0, found + 9);
+
+	//filter check
+	if (data_url.length() != 90 && data_url.substr(data_url.length() - 4) == ".jar") {
+		std::cout << "ERROR: Wrong Server jar url, filter needs to be updated" << std::endl;
+		if (win) {
+			system("pause");
+		}
+		return 1;
+	}
+
 	std::cout << "Server jar url: " + data_url << std::endl;
 
 	//hash
