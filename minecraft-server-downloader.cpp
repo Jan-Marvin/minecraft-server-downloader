@@ -211,7 +211,7 @@ bool compare_hash(std::string strsha) {
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.37\n" << std::endl;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.38\n" << std::endl;
 	int lenght = INT_MAX;
 	bool verbose = false;
 	if (argc > 1) {
