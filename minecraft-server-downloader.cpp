@@ -255,7 +255,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	std::cout << "Server jar url: " + data_url << std::endl;
+	std::cout << "server.jar url: " + data_url << std::endl;
 
 	//hash
 	found = data_url.find("objects/");
