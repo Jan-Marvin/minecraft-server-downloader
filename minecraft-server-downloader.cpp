@@ -195,7 +195,7 @@ std::string calc_hash() {
 }
 
 //compare sha1 
-//1=ok 0=nok
+//1=ok 0=not ok
 bool compare_hash(std::string strsha) {
 	//hash to uppercase
 	std::for_each(strsha.begin(), strsha.end(), [](char& c) {
@@ -238,17 +238,21 @@ int main(int argc, char* argv[]) {
 	//jar url
 	std::string data = get_data("https://www.minecraft.net/en-us/download/server", verbose);
 	std::string data_url = data;
-	std::size_t found = data_url.find(".jar");
+	std::size_t found = data_url.find(".jar\"");
 	if (found == std::string::npos) {
+		std::cout << "ERROR: Could not find server.jar url" << std::endl;
+		if (win) {
+			system("pause");
+		}
 		return 1;
 	}
 	data_url.erase(found + 4);
-	found = data_url.find("<a href=\"https://launcher.mojang.com");
-	data_url.erase(0, found + 9);
+	found = data_url.rfind("https://");
+	data_url.erase(0, found);
 
 	//filter check
 	if (data_url.length() != 90 && data_url.substr(data_url.length() - 4) == ".jar") {
-		std::cout << "ERROR: Wrong Server jar url, filter needs to be updated" << std::endl;
+		std::cout << "ERROR: Wrong server.jar url, filter needs to be updated" << std::endl;
 		if (win) {
 			system("pause");
 		}
