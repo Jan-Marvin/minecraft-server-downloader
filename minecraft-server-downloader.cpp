@@ -23,19 +23,8 @@ static size_t write_data_string_callback(void* buffer, size_t size, size_t nmemb
 	return totalsize;
 }
 
-//header data
-static size_t header_callback(char* buffer, size_t size, size_t nitems, int* p_lenght) {
-	std::string header = buffer;
-	std::size_t found = header.find("Content-Length: ");
-	if (found != std::string::npos) {
-		header.erase(0, found + 16);
-		*p_lenght = stoi(header);
-	}
-	return nitems * size;
-}
-
 //space betwenn bar and number
-int getspace(long long dltotal, long long dlnow) {
+int getspace(int dltotal, int dlnow) {
 	int nr1 = 0;
 	int nr2 = 0;
 	bool lock = false;
@@ -77,7 +66,7 @@ int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_
 }
 
 //write jar
-int get_file(std::string url, bool verbose, int* p_lenght) {
+void get_file(std::string url, bool verbose) {
 	CURL* curl;
 	FILE* p_file;
 	CURLcode res;
@@ -88,8 +77,6 @@ int get_file(std::string url, bool verbose, int* p_lenght) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_file_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, p_file);
-		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
-		curl_easy_setopt(curl, CURLOPT_HEADERDATA, p_lenght);
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		if (verbose) {
@@ -100,19 +87,19 @@ int get_file(std::string url, bool verbose, int* p_lenght) {
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		fclose(p_file);
-		std::cout << std::endl;
+		std::cout << "\n";
 		if (res != 0) {
-			std::cerr << "[get_file]CURL ERROR: " << res << std::endl;
+			std::cerr << "[get_file]CURL ERROR: " << res << "\n";
 			if (win) {
 				system("pause");
 			}
+			std::exit(1);
 		}
 	}
 	curl_global_cleanup();
-	return res;
 }
 
-//get website
+//get data
 std::string get_data(std::string url, bool verbose) {
 	std::string result;
 	CURL* curl;
@@ -131,27 +118,26 @@ std::string get_data(std::string url, bool verbose) {
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		if (res != 0) {
-			std::cerr << "[get_data]CURL ERROR: " << res << std::endl;
+			std::cerr << "[get_data]CURL ERROR: " << res << "\n";
 			if (win) {
 				system("pause");
 			}
+			std::exit(1);
 		}
 	}
 	return result;
 }
 
 //is jar writable
-bool in_use() {
-	if (!std::filesystem::exists("server.jar")) {
-		return 0;
-	}
-	else {
+void in_use() {
+	if (std::filesystem::exists("server.jar")) {
 		int result = rename("server.jar", "server.jar");
-		if (result == 0) {
-			return 0;
-		}
-		else {
-			return 1;
+		if (result != 0) {
+			std::cerr << "ERROR: Cannot write to server.jar is it in use?\n";
+			if (win) {
+				system("pause");
+			}
+			std::exit(1);
 		}
 	}
 }
@@ -173,21 +159,21 @@ std::string calc_hash() {
 		infile.close();
 
 		//sha1
-		std::string s1;
+		std::string file_sha1;
 		unsigned char hash[SHA_DIGEST_LENGTH];
 		SHA1((unsigned char*)buffer, length, hash);
-		s1.assign((char*)&hash[0], sizeof(hash));
+		file_sha1.assign((char*)&hash[0], sizeof(hash));
 		delete[] buffer;
 
 		//to hex
-		static const char hex_digits[] = "0123456789ABCDEF";
-		std::string s2;
-		s2.reserve(s1.length() * 2);
-		for (unsigned char c : s1) {
-			s2.push_back(hex_digits[c >> 4]);
-			s2.push_back(hex_digits[c & 15]);
+		static const char hex_digits[] = "0123456789abcdef";
+		std::string file_sha1_fnal;
+		file_sha1_fnal.reserve(file_sha1.length() * 2);
+		for (unsigned char c : file_sha1) {
+			file_sha1_fnal.push_back(hex_digits[c >> 4]);
+			file_sha1_fnal.push_back(hex_digits[c & 15]);
 		};
-		return s2;
+		return file_sha1_fnal;
 	}
 	else {
 		return "";
@@ -195,24 +181,30 @@ std::string calc_hash() {
 }
 
 //compare sha1 
-//1=ok 0=not ok
-bool compare_hash(std::string strsha) {
-	//hash to uppercase
-	std::for_each(strsha.begin(), strsha.end(), [](char& c) {
-		c = ::toupper(c);
-		});
-	//compare hash
-	if (strsha == calc_hash()) {
-		return 1;
+void compare_hash(std::string sha_str, bool first) {
+	if (first) {
+		if (sha_str == calc_hash()) {
+			std::cout << "server.jar is up to date\n";
+			if (win) {
+				system("pause");
+			}
+			std::exit(1);
+		}
 	}
 	else {
-		return 0;
+		if (sha_str != calc_hash()) {
+			std::cout << "ERROR: Wrong checksum, please try again\n";
+			if (win) {
+				system("pause");
+			}
+			std::exit(1);
+		}
 	}
 }
 
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.38\n" << std::endl;
-	int lenght = INT_MAX;
+	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.39\n\n";
+
 	bool verbose = false;
 	if (argc > 1) {
 		//verbose
@@ -221,94 +213,51 @@ int main(int argc, char* argv[]) {
 		}
 		//version 
 		else if (argv[1] == std::string("-v")) {
-			std::cout << curl_version() << std::endl;
+			std::cout << curl_version() << "\n";
 			std::cout << SSLeay_version(SSLEAY_VERSION);;
 			return 1;
 		}
 	}
 
-	if (in_use()) {
-		std::cerr << "ERROR: Cannot write to server.jar is it in use?" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
+	in_use();
 
-	//jar url
-	std::string data = get_data("https://www.minecraft.net/en-us/download/server", verbose);
-	std::string data_url = data;
-	std::size_t found = data_url.find(".jar\"");
+	std::string data = get_data("https://launchermeta.mojang.com/mc/game/version_manifest.json", verbose);
+	std::size_t found = data.find("\"type\": \"release\", \"url\": ");
 	if (found == std::string::npos) {
-		std::cout << "ERROR: Could not find server.jar url" << std::endl;
+		std::cout << "ERROR: With version_manifest.json\n";
 		if (win) {
 			system("pause");
 		}
 		return 1;
 	}
-	data_url.erase(found + 4);
-	found = data_url.rfind("https://");
-	data_url.erase(0, found);
+	data.erase(0, found + 27);
+	found = data.find(".json");
+	data.erase(found + 5);
 
-	//filter check
-	if (data_url.length() != 90 && data_url.substr(data_url.length() - 4) == ".jar") {
-		std::cout << "ERROR: Wrong server.jar url, filter needs to be updated" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
+	std::string mc_version = data;
+	found = mc_version.rfind("/");
+	mc_version = mc_version.erase(0, found + 1).erase(mc_version.size() - 5);
+	std::cout << "Version: " + mc_version << "\n";
 
-	std::cout << "server.jar url: " + data_url << std::endl;
+	data = get_data(data, verbose);
+	found = data.find("\"server\":");
+	data.erase(0, found);
 
-	//hash
-	found = data_url.find("objects/");
-	std::string sHash = data_url.substr(found + 8, 40);
+	std::string sha1_server = data;
+	found = sha1_server.find("sha1");
+	sha1_server = sha1_server.erase(0, found + 8).erase(40);
+	compare_hash(sha1_server, 1);
 
-	if (compare_hash(sHash)) {
-		std::cout << "server.jar is up to date" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
+	found = data.find("url");
+	data.erase(0, found + 7);
+	found = data.find(".jar");
+	data.erase(found + 4);
+	std::cout << "URL: " + data << "\n";
 
-	//minecraft version
-	std::string data_version = data;
-	found = data_version.find(".jar</a>");
-	data_version.erase(found);
-	found = data_version.find("minecraft_server");
-	data_version.erase(0, found + 17);
+	std::cout << "Download...\n";
+	get_file(data, verbose);
+	compare_hash(sha1_server, 0);
 
-	std::cout << "Version: " + data_version << std::endl;
-	std::cout << "Download..." << std::endl;
-
-	if (get_file(data_url, verbose, &lenght) != 0) {
-		return 1;
-	}
-
-	//size check
-	if (std::filesystem::file_size("server.jar") != lenght) {
-		std::cerr << "ERROR: Wrong file size" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
-	else if (lenght == INT_MAX) {
-		std::cerr << "ERROR: Could not get remote server.jar file size" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
-	//hash check
-	else if (!compare_hash(sHash)) {
-		std::cerr << "ERROR: Wrong checksum" << std::endl;
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
 	return 0;
+
 }
