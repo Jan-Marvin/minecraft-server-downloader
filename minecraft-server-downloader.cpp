@@ -224,7 +224,7 @@ int main(int argc, char* argv[]) {
 	std::string data = get_data("https://launchermeta.mojang.com/mc/game/version_manifest.json", verbose);
 	std::size_t found = data.find("\"type\": \"release\", \"url\": ");
 	if (found == std::string::npos) {
-		std::cout << "ERROR: With version_manifest.json\n";
+		std::cout << "ERROR: With version_manifest.json parsing\n";
 		if (win) {
 			system("pause");
 		}
