@@ -4,9 +4,11 @@
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
+
 #include <curl/curl.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
+
 #include "minecraft-server-downloader.h"
 
 //write data to file
@@ -61,25 +63,24 @@ int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_
 			space.append(" ");
 		}
 	}
-	printf("\r[%s]%s%lld/%lld", bar.c_str(), space.c_str(), dlnow / 1000, dltotal / 1000);
+	printf("\r[%s]%s%lld/%lld KB", bar.c_str(), space.c_str(), dlnow / 1000, dltotal / 1000);
 	return CURLE_OK;
 }
 
 //write jar
-void get_file(std::string url, bool verbose) {
+void get_file(std::string url, std::string file_name, bool verbose_logging) {
 	CURL* curl;
 	FILE* p_file;
 	CURLcode res;
-	char outfilename[FILENAME_MAX] = "server.jar";
 	curl = curl_easy_init();
 	if (curl) {
-		p_file = fopen(outfilename, "wb");
+		p_file = fopen(file_name.c_str(), "wb");
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_file_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, p_file);
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		if (verbose) {
+		if (verbose_logging) {
 			FILE* p_log = fopen("curl-get_file.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
@@ -100,7 +101,7 @@ void get_file(std::string url, bool verbose) {
 }
 
 //get data
-std::string get_data(std::string url, bool verbose) {
+std::string get_data(std::string url, bool verbose_logging) {
 	std::string result;
 	CURL* curl;
 	CURLcode res;
@@ -110,7 +111,7 @@ std::string get_data(std::string url, bool verbose) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_string_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
-		if (verbose) {
+		if (verbose_logging) {
 			FILE* p_log = fopen("curl-get_data.log", "wb");
 			curl_easy_setopt(curl, CURLOPT_STDERR, p_log);
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
@@ -129,11 +130,11 @@ std::string get_data(std::string url, bool verbose) {
 }
 
 //is jar writable
-void in_use() {
-	if (std::filesystem::exists("server.jar")) {
-		int result = rename("server.jar", "server.jar");
+void in_use(std::string file_name) {
+	if (std::filesystem::exists(file_name)) {
+		int result = rename(file_name.c_str(), file_name.c_str());
 		if (result != 0) {
-			std::cerr << "ERROR: Cannot write to server.jar is it in use?\n";
+			std::cerr << "ERROR: Cannot write to " + file_name + " is it in use?\n";
 			if (win) {
 				system("pause");
 			}
@@ -143,9 +144,9 @@ void in_use() {
 }
 
 //calculate sha1
-std::string calc_hash() {
+std::string calc_hash(std::string file_name) {
 	//open file
-	std::ifstream infile("server.jar", std::ifstream::binary);
+	std::ifstream infile(file_name, std::ifstream::binary);
 
 	if (infile) {
 		//get length of file:
@@ -181,18 +182,18 @@ std::string calc_hash() {
 }
 
 //compare sha1 
-void compare_hash(std::string sha_str, bool first) {
+void compare_hash(std::string sha_str, bool first, std::string file_name) {
 	if (first) {
-		if (sha_str == calc_hash()) {
-			std::cout << "server.jar is up to date\n";
+		if (sha_str == calc_hash(file_name)) {
+			std::cout << file_name + " is up to date\n";
 			if (win) {
 				system("pause");
 			}
-			std::exit(1);
+			std::exit(0);
 		}
 	}
 	else {
-		if (sha_str != calc_hash()) {
+		if (sha_str != calc_hash(file_name)) {
 			std::cout << "ERROR: Wrong checksum, please try again\n";
 			if (win) {
 				system("pause");
@@ -202,62 +203,79 @@ void compare_hash(std::string sha_str, bool first) {
 	}
 }
 
+std::string between(std::string begin, std::string end, std::string data, bool use_rfind_begin, bool use_rfind_end) {
+	std::size_t found;
+	if (use_rfind_begin) {
+		found = data.rfind(begin);
+	}
+	else {
+		found = data.find(begin);
+	}
+	data.erase(0, found + begin.size());
+
+	if (use_rfind_end) {
+		found = data.rfind(end);
+	}
+	else {
+		found = data.find(end);
+	}
+	data.erase(found);
+
+	return data;
+}
+
 int main(int argc, char* argv[]) {
-	std::cout << "Minecraft server downloader 2nd Edition Ver. 2.39\n\n";
+	std::string version = "2.39";
+	std::cout << "Minecraft server downloader, 2nd Edition Ver. " + version + "\n\n";
+	bool curl_verbose_logging = false;
+	std::string file_name = "server.jar";
 
-	bool verbose = false;
 	if (argc > 1) {
-		//verbose
-		if (argv[1] == std::string("-l")) {
-			verbose = true;
-		}
-		//version 
-		else if (argv[1] == std::string("-v")) {
-			std::cout << curl_version() << "\n";
-			std::cout << SSLeay_version(SSLEAY_VERSION);;
-			return 1;
+		for (int i = 0; i < argc; i++) {
+			if (argv[i] == std::string("-h") || argv[i] == std::string("--help")) {
+				std::cout << "Usage: minecraft-server-downloader [-h] [-l] [-o <name>] [-v] \n\n"
+					<< "Options:\n"
+					<< "-h, --help 		Print this help\n"
+					<< "-l			Enable curl verbose information\n"
+					<< "-o			Set output name\n"
+					<< "-v, -V, --version	Print version\n";
+				return 1;
+			}
+			if (argv[i] == std::string("-v") || argv[i] == std::string("-V") || argv[i] == std::string("--version")) {
+				std::cout << "minecraft-server-downloader/" + version + "\n"
+					<< "Build with:\n"
+					<< curl_version() << ", "
+					<< OPENSSL_VERSION_TEXT;
+				return 1;
+			}
+			if (argv[i] == std::string("-l")) {
+				curl_verbose_logging = true;
+				continue;
+			}
+			if (argv[i] == std::string("-o")) {
+				file_name = argv[i + 1];
+				continue;
+			}
 		}
 	}
 
-	in_use();
+	in_use(file_name);
 
-	std::string data = get_data("https://launchermeta.mojang.com/mc/game/version_manifest.json", verbose);
-	std::size_t found = data.find("\"type\": \"release\", \"url\": ");
-	if (found == std::string::npos) {
-		std::cout << "ERROR: With version_manifest.json parsing\n";
-		if (win) {
-			system("pause");
-		}
-		return 1;
-	}
-	data.erase(0, found + 27);
-	found = data.find(".json");
-	data.erase(found + 5);
+	std::string json_url = between("\"type\": \"release\", \"url\": \"", "\", \"time\":", get_data("https://launchermeta.mojang.com/mc/game/version_manifest.json", curl_verbose_logging), 0, 0);
 
-	std::string mc_version = data;
-	found = mc_version.rfind("/");
-	mc_version = mc_version.erase(0, found + 1).erase(mc_version.size() - 5);
+	std::string mc_version = between("/", ".json", json_url, 1, 0);
 	std::cout << "Version: " + mc_version << "\n";
 
-	data = get_data(data, verbose);
-	found = data.find("\"server\":");
-	data.erase(0, found);
+	std::string sha1_server = between("\"server\": {\"sha1\": \"", "\",", get_data(json_url, curl_verbose_logging), 0, 0);
+	compare_hash(sha1_server, 1, file_name);
 
-	std::string sha1_server = data;
-	found = sha1_server.find("sha1");
-	sha1_server = sha1_server.erase(0, found + 8).erase(40);
-	compare_hash(sha1_server, 1);
+	std::string server_url = between("\"server\": {\"sha1\": \"", "server_mappings", get_data(json_url, curl_verbose_logging), 0, 0);
+	server_url = between("\"url\": \"", "\"}", server_url, 0, 0);
+	std::cout << "URL: " + server_url << "\n";
 
-	found = data.find("url");
-	data.erase(0, found + 7);
-	found = data.find(".jar");
-	data.erase(found + 4);
-	std::cout << "URL: " + data << "\n";
-
-	std::cout << "Download...\n";
-	get_file(data, verbose);
-	compare_hash(sha1_server, 0);
+	std::cout << "Downloading...\n";
+	get_file(server_url, file_name, curl_verbose_logging);
+	compare_hash(sha1_server, 0, file_name);
 
 	return 0;
-
 }
