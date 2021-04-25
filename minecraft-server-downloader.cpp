@@ -231,7 +231,7 @@ std::string between(std::string begin, std::string end, std::string data, bool u
 }
 
 int main(int argc, char* argv[]) {
-	std::string version = "2.39";
+	std::string version = "2.40";
 	std::cout << "Minecraft server downloader, 2nd Edition Ver. " + version + "\n\n";
 	bool curl_verbose_logging = false;
 	std::string file_name = "server.jar";
