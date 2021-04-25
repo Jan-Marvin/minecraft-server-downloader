@@ -4,12 +4,15 @@
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
+#include <chrono>
 
 #include <curl/curl.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
 
 #include "minecraft-server-downloader.h"
+
+clock_t start_timer;
 
 //write data to file
 size_t write_data_file_callback(void* ptr, size_t size, size_t nmemb, FILE* stream) {
@@ -63,7 +66,10 @@ int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_
 			space.append(" ");
 		}
 	}
-	printf("\r[%s]%s%lld/%lld KB", bar.c_str(), space.c_str(), dlnow / 1000, dltotal / 1000);
+	clock_t clockTicksTaken = clock() - start_timer;
+	float timeInSeconds = clockTicksTaken / (float)CLOCKS_PER_SEC;
+	float speed = (dlnow / 1e+6) / timeInSeconds;
+	printf("\r[%s]%s%.2f/%.2f MB   %.2f MB/s     ", bar.c_str(), space.c_str(), ((float)dlnow / 1e+6), ((float)dltotal / 1e+6), speed);
 	return CURLE_OK;
 }
 
